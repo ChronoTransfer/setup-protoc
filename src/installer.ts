@@ -4,7 +4,8 @@ let tempDirectory = process.env.RUNNER_TEMP || "";
 import * as os from "os";
 import * as path from "path";
 import * as util from "util";
-import * as restm from "typed-rest-client/RestClient";
+import { HttpClient } from "@actions/http-client";
+import { BearerCredentialHandler } from "@actions/http-client/lib/auth";
 import * as semver from "semver";
 
 if (!tempDirectory) {
@@ -172,18 +173,13 @@ async function fetchVersions(
   includePreReleases: boolean,
   repoToken: string,
 ): Promise<string[]> {
-  let rest: restm.RestClient;
-  if (repoToken != "") {
-    rest = new restm.RestClient("setup-protoc", "", [], {
-      headers: { Authorization: "Bearer " + repoToken },
-    });
-  } else {
-    rest = new restm.RestClient("setup-protoc");
-  }
+  const handlers =
+    repoToken != "" ? [new BearerCredentialHandler(repoToken)] : [];
+  const http = new HttpClient("setup-protoc", handlers);
 
   let tags: IProtocRelease[] = [];
   for (let pageNum = 1, morePages = true; morePages; pageNum++) {
-    const p = await rest.get<IProtocRelease[]>(
+    const p = await http.getJson<IProtocRelease[]>(
       "https://api.github.com/repos/protocolbuffers/protobuf/releases?page=" +
         pageNum,
     );
